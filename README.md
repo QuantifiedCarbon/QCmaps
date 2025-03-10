@@ -1,4 +1,4 @@
-# [Project Title]
+# QCmaps
 
 Thanks for exploring this project. It was built with care for an enjoyable experience.
 
@@ -42,3 +42,9 @@ pip install ".[test]"
 
 Copy the contents of this project into your own, or use this repo as a 'template' when creating the repo
 
+
+## TODO
+
+- incorporate QCcolors 
+- allow clipping of geometries before plot
+- add multi row plot using list of df
