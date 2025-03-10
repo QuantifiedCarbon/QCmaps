@@ -1,0 +1,23 @@
+[flake8]
+# Specify the maximum line length, pylint has already checked the limit of code, 
+# however it has a higher limit for docstrings
+max-line-length = 120
+
+# Enable docstring checking with flake8-docstrings
+docstring-convention = numpy
+docstring_style=numpy
+
+# Set path to include
+exclude = .git,__pycache__,examples,tests,old,build,dist,venv,.venv,.tox,.eggs,*.egg,*.egg-info
+
+# Enable flake8-docstrings
+enable-extensions = D
+
+# Disable unused imports for __init__ files
+per-file-ignores = __init__.py:F401
+
+# Show statistics
+statistics = True
+
+# Show source code for each error
+show-source = True
