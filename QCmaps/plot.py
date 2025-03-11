@@ -129,9 +129,20 @@ def get_subplot(ax, fc, gdf):
         vmin=fc["vmin"],
         vmax=fc["vmax"],
     )
-    for zone in zones:
-        centroid = gdf.loc[zone].geometry.centroid
-        ax.text(centroid.x, centroid.y, zone, ha="center", color="black", weight="bold")
+    if fc["geoface"] == "value":
+        for zone in zones:
+            centroid = gdf.loc[zone].geometry.centroid
+            value = round(gdf.loc[[zone]].iloc[:, 1][0], 1)
+            ax.text(
+                centroid.x, centroid.y, value, ha="center", color="black", weight="bold"
+            )
+    elif fc["geoface"] == "name":
+        for zone in zones:
+            centroid = gdf.loc[zone].geometry.centroid
+            ax.text(
+                centroid.x, centroid.y, zone, ha="center", color="black", weight="bold"
+            )
+
     ax.set_title(result)
     ax.set_xlim(minx - buffer, maxx + buffer)
     ax.set_ylim(miny - buffer, maxy + buffer)
@@ -186,7 +197,7 @@ def plot_figure(fc, gdf):
     return fig
 
 
-def plot(df, legend_label=""):
+def plot(df, legend_label="", geoface="value"):
     """
     Get geometries, process and plot map figure.
 
@@ -196,6 +207,8 @@ def plot(df, legend_label=""):
         Dataframe with parameter values.
     legend_label: str
         Legend label with unit.
+    geoface: str
+        Display type on geoface. Options are 'value' (default) and 'name'.
 
     Returns
     -------
@@ -208,6 +221,7 @@ def plot(df, legend_label=""):
     # gdf = georeference(gdf, "orthographic")
     fc = get_figconfig(gdf)
     fc["legend"] = legend_label
+    fc["geoface"] = geoface
     fig = plot_figure(fc, gdf)
 
     #    fig.savefig("output.png", format="png", dpi=300, bbox_inches="tight")
