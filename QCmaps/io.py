@@ -3,6 +3,7 @@
 from pathlib import Path
 import pandas as pd
 import geopandas as gpd
+from shapely.geometry import box
 
 
 def get_gdf():
@@ -18,6 +19,7 @@ def get_gdf():
     geo_data = gpd.read_file(current_dir / "data/el_zones_raew.geojson")
     gdf = geo_data[["id", "geometry"]].copy()
     gdf = gdf.set_index("id")
+    gdf = gdf[gdf.is_valid]
     return gdf
 
 
@@ -91,7 +93,7 @@ def georeference(gdf, projection="equal_area"):
     """
     if projection == "equal_area":
         crs = "EPSG:3035"
-    if projection == "orthographic":
+    elif projection == "orthographic":
         zones = gdf.iloc[:, 1:].dropna(how="all").index
         centroid = (
             gdf.loc[zones].to_crs(epsg=3857).geometry.centroid.union_all().centroid
@@ -101,4 +103,27 @@ def georeference(gdf, projection="equal_area"):
         center_lon, center_lat = centroid.x[0], centroid.y[0]
         crs = f"+proj=ortho +lat_0={center_lat} +lon_0={center_lon} +datum=WGS84"
     gdf = gdf.to_crs(crs)
+    return gdf
+
+
+def clip_geometry(fc, gdf):
+    """
+    Clip geometry with bounding frame.
+
+    Parameters
+    ----------
+    fc: dict
+        Figure configurations.
+
+    gdf: gpd.GeoDataFrame
+        Processed Geodataframe.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        gdf, Processed Geodataframe.
+    """
+    minx, miny, maxx, maxy = fc["area_frame"]
+    bounding_box = box(minx, miny, maxx, maxy)
+    gdf = gpd.clip(gdf, bounding_box)
     return gdf
