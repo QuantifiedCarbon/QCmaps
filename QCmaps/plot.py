@@ -1,10 +1,22 @@
 """Provides plotting functionalities."""
 
+import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as path_effects
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from matplotlib.colors import LinearSegmentedColormap
-from QCmaps.io import get_gdf, process_gdf, georeference
+import QCcolours
+from QCmaps.io import get_gdf, process_gdf, georeference, clip_geometry
+
+# COLORMAP = "coolwarm"
+COLORMAP = "QC_general"
+# COLORMAP = "QC_general_r"
+# COLORMAP = "QC_coolwarm"
+# COLORMAP = "QC_coolwarm_r"
+HIGHLIGHT_ZONES = "all"
+BUFFER_FRAME = [-0.05, -0.05, 0.05, 0.05]
+SHIFT_FRAME = [0, 0]
 
 
 def get_figconfig(gdf):
@@ -26,48 +38,64 @@ def get_figconfig(gdf):
     #    font_family = "DejaVu Sans" # does not work when saving
     #    font_family = "Arial"
     font_size = 10
-    #    colorempty = "gainsboro"
-    colorempty = "whitesmoke"
+    #    colorempty = "whitesmoke"
+    colorempty = "gainsboro"
     #    colorempty = "floralwhite"
-    #    colormap = "coolwarm"
-    #    colormap = "bluered"
-    colormap = "QC"
-    if colormap == "bluered":
-        cmap = plt.get_cmap("coolwarm")
-        cmap = LinearSegmentedColormap.from_list(
-            "bluered", [cmap.get_under(), cmap.get_over()]
-        )
-    if colormap == "QC":
-        #        color_QC_background = [0.184, 0.267, 0.314, 1]
-        #        color_QC_logo = [0.859, 0.988, 0.557, 1]
+    #    colorempty = "lightgray"
+    if COLORMAP == "QC_test":
         color_blue = [0.2298057, 0.29871797, 0.75368315, 1.0]
         color_orange = [0.99215686, 0.55294118, 0.23529412, 1.0]
         color_red = [0.70567316, 0.01555616, 0.15023281, 1.0]
-
         colors = [
-            #            color_QC_background,
             color_blue,
-            #            color_QC_logo,
             color_orange,
             color_red,
         ]
         cmap = LinearSegmentedColormap.from_list("QCcmap", colors)
+    if COLORMAP.startswith("QC_"):
+        if COLORMAP.startswith("QC_general"):
+            colors = QCcolours.QC_CMAP_COLOURS
+        elif COLORMAP.startswith("QC_coolwarm"):
+            colors = ["QC_green", "QC_blue", "QC_brown"]
+        cmap = QCcolours.matplotlib_utils.make_cmap_range(colors)
+        if COLORMAP.endswith("_r"):
+            cmap = cmap.reversed()
     else:
-        cmap = plt.get_cmap(colormap)
+        cmap = plt.get_cmap(COLORMAP)
+
+    zones = gdf.iloc[:, 1:].dropna(how="all").index
+    results = gdf.iloc[:, 1:].columns
+    number_rows = 1
+    number_columns = len(results)
+    vmin = gdf.loc[zones].iloc[:, 1:].min().min()
+    vmax = gdf.loc[zones].iloc[:, 1:].max().max()
+    if COLORMAP.startswith("QC_coolwarm"):
+        vamm = max(abs(vmax), abs(vmin))
+        vmax = vamm
+        vmin = -vamm
+    norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+    sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+    figsize = (2.5 * number_columns, 4)
+
+    if HIGHLIGHT_ZONES == "all":
+        highlight_zones = zones
+    else:
+        highlight_zones = HIGHLIGHT_ZONES
 
     fc = {}
-    fc["zones"] = gdf.iloc[:, 1:].dropna(how="all").index
-    fc["results"] = gdf.iloc[:, 1:].columns
-    fc["number_rows"] = 1
-    fc["number_columns"] = len(fc["results"])
-    fc["vmin"] = gdf.loc[fc["zones"]].iloc[:, 1:].min().min()
-    fc["vmax"] = gdf.loc[fc["zones"]].iloc[:, 1:].max().max()
+    fc["zones"] = zones
+    fc["results"] = results
+    fc["number_rows"] = number_rows
+    fc["number_columns"] = number_columns
+    fc["vmin"] = vmin
+    fc["vmax"] = vmax
     fc["cempty"] = colorempty
     fc["cmap"] = cmap
-    fc["norm"] = mcolors.Normalize(vmin=fc["vmin"], vmax=fc["vmax"])
-    fc["sm"] = cm.ScalarMappable(cmap=fc["cmap"], norm=fc["norm"])
-
-    figsize = (2.5 * fc["number_columns"], 4)
+    fc["norm"] = norm
+    fc["sm"] = sm
+    fc["highlight_zones"] = highlight_zones
+    fc["buffer_frame"] = BUFFER_FRAME
+    fc["shift_frame"] = SHIFT_FRAME
 
     plt.rcParams.update(
         {
@@ -93,6 +121,38 @@ def get_figconfig(gdf):
     return fc
 
 
+def get_area_frame(fc, gdf):
+    """
+    Get area frame to display plot.
+
+    Parameters
+    ----------
+    fc: dict
+        Figure configurations.
+
+    gdf: gpd.GeoDataFrame
+        Processed Geodataframe.
+
+    Returns
+    -------
+    np.array
+        area_frame, Area frame coordinates.
+    """
+    highlight_zones = fc["highlight_zones"]
+    area_frame = gdf.loc[highlight_zones].total_bounds
+    minx, miny, maxx, maxy = area_frame
+    dx = maxx - minx
+    dy = maxy - miny
+    buffer_frame = np.array(fc["buffer_frame"])
+    buffer_frame = buffer_frame * [dx, dy, dx, dy]
+    area_frame = area_frame + buffer_frame
+    shift_frame = np.array(2 * fc["shift_frame"])
+    shift_frame = shift_frame * [dx, dy, dx, dy]
+    area_frame = area_frame + shift_frame
+    minx, miny, maxx, maxy = area_frame
+    return area_frame
+
+
 def get_subplot(ax, fc, gdf):
     """
     Get subplot parts of figure.
@@ -111,44 +171,47 @@ def get_subplot(ax, fc, gdf):
     matplotlib.axes._axes.Axes
         ax, Figure ax.
     """
-    gdf = gdf[gdf.is_valid]
     result = gdf.columns[1]
     zones = gdf.iloc[:, 1:].dropna(how="all").index
-    minx, miny, maxx, maxy = gdf.loc[zones].total_bounds  # Bounding box for all three
-    buffer = 0.05 * (
-        maxx - minx
-    )  # Optional: Add a small buffer for better visualization
-    #    clip_area = [minx - buffer, maxx + buffer, miny - buffer, maxy + buffer]
-    gdf.plot(ax=ax, color=fc["cempty"], linewidth=0.5, edgecolor="black")
+    highlight_zones = fc["highlight_zones"]
+    minx, miny, maxx, maxy = fc["area_frame"]
+
+    gdf.plot(ax=ax, color=fc["cempty"], linewidth=0.5, edgecolor="white")
     gdf.loc[zones].plot(
         ax=ax,
         column=result,
         cmap=fc["cmap"],
         linewidth=0.5,
-        edgecolor="black",
+        edgecolor="white",
         vmin=fc["vmin"],
         vmax=fc["vmax"],
     )
-    if fc["geoface"] == "value":
-        for zone in zones:
-            centroid = gdf.loc[zone].geometry.centroid
-            value = round(gdf.loc[[zone]].iloc[:, 1][0], 1)
-            ax.text(
-                centroid.x, centroid.y, value, ha="center", color="black", weight="bold"
-            )
-    elif fc["geoface"] == "name":
-        for zone in zones:
-            centroid = gdf.loc[zone].geometry.centroid
-            ax.text(
-                centroid.x, centroid.y, zone, ha="center", color="black", weight="bold"
-            )
+
+    text_linewidth = 1
+    for zone in highlight_zones:
+        centroid = gdf.loc[zone].geometry.centroid
+        value = round(gdf.loc[[zone]].iloc[:, 1][0], 1)
+        face_text = f"{zone}\n{value}"
+        ax.text(
+            centroid.x,
+            centroid.y,
+            face_text,
+            ha="center",
+            va="center",
+            color="black",
+            weight="bold",
+            path_effects=[
+                path_effects.Stroke(linewidth=text_linewidth, foreground="white"),
+                path_effects.Normal(),
+            ],
+        )
 
     ax.set_title(result)
-    ax.set_xlim(minx - buffer, maxx + buffer)
-    ax.set_ylim(miny - buffer, maxy + buffer)
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_frame_on(False)
+    ax.set_xlim(minx, maxx)
+    ax.set_ylim(miny, maxy)
     return ax
 
 
@@ -197,7 +260,7 @@ def plot_figure(fc, gdf):
     return fig
 
 
-def plot(df, legend_label="", geoface="value"):
+def plot(df, legend_label=""):
     """
     Get geometries, process and plot map figure.
 
@@ -207,8 +270,6 @@ def plot(df, legend_label="", geoface="value"):
         Dataframe with parameter values.
     legend_label: str
         Legend label with unit.
-    geoface: str
-        Display type on geoface. Options are 'value' (default) and 'name'.
 
     Returns
     -------
@@ -218,10 +279,11 @@ def plot(df, legend_label="", geoface="value"):
     gdf = get_gdf()
     gdf = process_gdf(df, gdf)
     gdf = georeference(gdf)
-    # gdf = georeference(gdf, "orthographic")
     fc = get_figconfig(gdf)
     fc["legend"] = legend_label
-    fc["geoface"] = geoface
+    fc["area_frame"] = get_area_frame(fc, gdf)
+    if HIGHLIGHT_ZONES != "all":
+        gdf = clip_geometry(fc, gdf)
     fig = plot_figure(fc, gdf)
 
     #    fig.savefig("output.png", format="png", dpi=300, bbox_inches="tight")
