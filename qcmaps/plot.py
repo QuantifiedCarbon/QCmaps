@@ -7,7 +7,7 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from matplotlib.colors import LinearSegmentedColormap
 import QCcolours
-from QCmaps.io import get_gdf, process_gdf, georeference, clip_geometry
+from qcmaps.io import get_gdf, process_gdf, georeference, clip_geometry
 
 # COLORMAP = "coolwarm"
 COLORMAP = "QC_general"
@@ -190,7 +190,8 @@ def get_subplot(ax, fc, gdf):
     text_linewidth = 1
     for zone in highlight_zones:
         centroid = gdf.loc[zone].geometry.centroid
-        value = round(gdf.loc[[zone]].iloc[:, 1][0], 1)
+        value = gdf.loc[[zone]]
+        value = value.iloc[:, 1].values.round(1)[0]
         face_text = f"{zone}\n{value}"
         ax.text(
             centroid.x,
@@ -285,8 +286,4 @@ def plot(df, legend_label=""):
     if HIGHLIGHT_ZONES != "all":
         gdf = clip_geometry(fc, gdf)
     fig = plot_figure(fc, gdf)
-
-    #    fig.savefig("output.png", format="png", dpi=300, bbox_inches="tight")
-    #    fig.savefig("output.svg", format="svg", dpi=300, bbox_inches="tight")
-
     return fig
