@@ -1,1 +1,1 @@
-recursive-include QCmaps/data *.geojson
+recursive-include qcmaps/data *.geojson
