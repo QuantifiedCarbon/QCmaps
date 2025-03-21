@@ -39,4 +39,4 @@ test = [
 ]
 
 [tool.setuptools]
-package-data = { "QCmaps.data" = ["el_zones_raew.geojson"] }
+include-package-data = true
