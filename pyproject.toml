@@ -3,11 +3,9 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-# Change this to your package name
 name = "qcmaps"
 dynamic = ["version"]
-# Change this to your package description
-description = "Example package for new Quantified Carbon projects"
+description = "Package for plotting map figures"
 authors = [
     { name = "Quantified Carbon"}
 ]
