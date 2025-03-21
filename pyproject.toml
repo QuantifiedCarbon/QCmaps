@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# Change this to your package name
+name = "qcmaps"
+dynamic = ["version"]
+# Change this to your package description
+description = "Example package for new Quantified Carbon projects"
+authors = [
+    { name = "Quantified Carbon"}
+]
+maintainers = [
+    { name = "Quantified Carbon"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3"
+]
+dependencies = [
+        "pandas",
+        "geopandas",
+        "matplotlib",
+        "python-box",
+        "numpy",
+        "QCcolours>=1.1.4",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "qcmaps.version.__version__" }  
+
+[project.optional-dependencies]
+test = [
+    # Test tools
+    "pytest",
+    "pytest-cov",
+    "pytest-md",
+    # Extras go here (maybe tests need jupyter or similar)
+]
+
+[tool.setuptools]
+package-data = { "QCmaps.data" = ["el_zones_raew.geojson"] }
