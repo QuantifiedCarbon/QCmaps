@@ -9,11 +9,8 @@ from matplotlib.colors import LinearSegmentedColormap
 import QCcolours
 from qcmaps.io import get_gdf, process_gdf, georeference, clip_geometry
 
-# COLORMAP = "coolwarm"
-COLORMAP = "QC_general"
-# COLORMAP = "QC_general_r"
-# COLORMAP = "QC_coolwarm"
-# COLORMAP = "QC_coolwarm_r"
+COLORMAP = "QC_sequential"
+# COLORMAP = "QC_diverging"
 HIGHLIGHT_ZONES = "all"
 BUFFER_FRAME = [-0.05, -0.05, 0.05, 0.05]
 SHIFT_FRAME = [0, 0]
@@ -42,6 +39,8 @@ def get_figconfig(gdf):
     colorempty = "gainsboro"
     #    colorempty = "floralwhite"
     #    colorempty = "lightgray"
+    #    colorhide = QCcolours.colours.QC_PLOT_FILL_COLOURS["QC_sand"]
+    colorhide = "gainsboro"
     if COLORMAP == "QC_test":
         color_blue = [0.2298057, 0.29871797, 0.75368315, 1.0]
         color_orange = [0.99215686, 0.55294118, 0.23529412, 1.0]
@@ -53,9 +52,9 @@ def get_figconfig(gdf):
         ]
         cmap = LinearSegmentedColormap.from_list("QCcmap", colors)
     if COLORMAP.startswith("QC_"):
-        if COLORMAP.startswith("QC_general"):
+        if COLORMAP.startswith("QC_sequential"):
             colors = QCcolours.QC_CMAP_COLOURS
-        elif COLORMAP.startswith("QC_coolwarm"):
+        elif COLORMAP.startswith("QC_diverging"):
             colors = ["QC_green", "QC_blue", "QC_brown"]
         cmap = QCcolours.matplotlib_utils.make_cmap_range(colors)
         if COLORMAP.endswith("_r"):
@@ -69,7 +68,7 @@ def get_figconfig(gdf):
     number_columns = len(results)
     vmin = gdf.loc[zones].iloc[:, 1:].min().min()
     vmax = gdf.loc[zones].iloc[:, 1:].max().max()
-    if COLORMAP.startswith("QC_coolwarm"):
+    if COLORMAP.startswith("QC_diverging"):
         vamm = max(abs(vmax), abs(vmin))
         vmax = vamm
         vmin = -vamm
@@ -90,6 +89,7 @@ def get_figconfig(gdf):
     fc["vmin"] = vmin
     fc["vmax"] = vmax
     fc["cempty"] = colorempty
+    fc["chide"] = colorhide
     fc["cmap"] = cmap
     fc["norm"] = norm
     fc["sm"] = sm
@@ -179,14 +179,19 @@ def get_subplot(ax, fc, gdf):
     gdf.plot(ax=ax, color=fc["cempty"], linewidth=0.5, edgecolor="white")
     gdf.loc[zones].plot(
         ax=ax,
+        color=fc["chide"],
+        linewidth=0.5,
+        edgecolor="black",
+    )
+    gdf.loc[highlight_zones].plot(
+        ax=ax,
         column=result,
         cmap=fc["cmap"],
         linewidth=0.5,
-        edgecolor="white",
+        edgecolor="black",
         vmin=fc["vmin"],
         vmax=fc["vmax"],
     )
-
     text_linewidth = 1
     for zone in highlight_zones:
         centroid = gdf.loc[zone].geometry.centroid
